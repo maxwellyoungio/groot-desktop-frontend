@@ -1557,13 +1557,13 @@ app.post('/memes/admin/:meme_id', function(req, res) {
 	});
 });
 
-process.on('uncaughtException', function (err) {
+function mailErr(err) {
 	if(process.env.EXCEPTION_FROM_EMAIL && process.env.EXCEPTION_TO_EMAIL){
 		var mailOptions = {
 			from: process.env.EXCEPTION_FROM_EMAIL, 
 			to: process.env.EXCEPTION_TO_EMAIL,  
 			subject: '[Groot-desktop-frontend] Fatal Error: ' + (new Date).toLocaleTimeString(), 
-			text: 'Uncaught Exception: Groot Desktop Frontend\n' + err.stack,
+			text: 'Uncaught Exception: Groot Desktop Frontend\n' + (err.stack || err),
 		};
 
 		transporter.sendMail(mailOptions, function(error, info){
@@ -1572,16 +1572,20 @@ process.on('uncaughtException', function (err) {
 			}else{
 				console.log('Message sent: ' + info.response);
 			}
-		console.error((new Date).toLocaleTimeString() + ' uncaughtException:', err.message)
-		console.error(err.stack)
-		process.exit(1);
-
+			console.log((new Date).toLocaleTimeString() + ' uncaughtException:', (err.message || err));
+			console.log(err.stack);
 		});
 	}
-});
+}
+
+process.on('uncaughtException', mailErr);
 
 app.use(express.static(__dirname + '/public'));
 app.use('/sponsors', express.static(__dirname + '/public'));
+app.use(function(err, req, res, next) {
+	mailErr(err);
+	return res.sendStatus(500);
+});
 
 // Start server and logs port as a callback
 app.listen(PORT, function() {
